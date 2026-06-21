@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import CurrentWeather from './components/CurrentWeather.vue'
 import ForecastCard from './components/ForecastCard.vue'
 import { getCurrentWeather, getForecast, getWeatherDescription } from './api/weather.js'
+import { formatDate, getDayName } from './utils/date.js'
 
 const BEIJING = { latitude: 39.9042, longitude: 116.4074, name: '北京' }
 
@@ -11,19 +12,6 @@ const loading = ref(true)
 const error = ref(null)
 const currentWeather = ref(null)
 const forecastList = ref([])
-
-function formatDate(dateStr) {
-  const date = new Date(dateStr)
-  const month = date.getMonth() + 1
-  const day = date.getDate()
-  return `${month}/${day}`
-}
-
-function getDayName(dateStr) {
-  const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
-  const date = new Date(dateStr)
-  return days[date.getDay()]
-}
 
 async function loadWeatherData() {
   loading.value = true
