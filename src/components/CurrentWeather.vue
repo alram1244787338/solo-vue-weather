@@ -52,6 +52,7 @@ defineProps({
 <style scoped>
 .current-weather-card {
   background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 20px;
   padding: 40px 48px;
   box-shadow: var(--shadow-lg);

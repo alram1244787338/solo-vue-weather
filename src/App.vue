@@ -1,75 +1,67 @@
 <script setup>
+import { ref, onMounted } from 'vue'
 import CurrentWeather from './components/CurrentWeather.vue'
 import ForecastCard from './components/ForecastCard.vue'
+import { getCurrentWeather, getForecast, getWeatherDescription } from './api/weather.js'
 
-const cityName = '北京'
+const BEIJING = { latitude: 39.9042, longitude: 116.4074, name: '北京' }
 
-const currentWeather = {
-  temperature: 26,
-  description: '晴',
-  humidity: 45,
-  windSpeed: 12,
-  feelsLike: 28
+const cityName = BEIJING.name
+const loading = ref(true)
+const error = ref(null)
+const currentWeather = ref(null)
+const forecastList = ref([])
+
+function formatDate(dateStr) {
+  const date = new Date(dateStr)
+  const month = date.getMonth() + 1
+  const day = date.getDate()
+  return `${month}/${day}`
 }
 
-const forecastList = [
-  {
-    date: '6/22',
-    dayName: '周日',
-    weatherCode: 0,
-    description: '晴',
-    tempMax: 30,
-    tempMin: 20
-  },
-  {
-    date: '6/23',
-    dayName: '周一',
-    weatherCode: 2,
-    description: '局部多云',
-    tempMax: 29,
-    tempMin: 19
-  },
-  {
-    date: '6/24',
-    dayName: '周二',
-    weatherCode: 3,
-    description: '阴天',
-    tempMax: 27,
-    tempMin: 18
-  },
-  {
-    date: '6/25',
-    dayName: '周三',
-    weatherCode: 61,
-    description: '小雨',
-    tempMax: 25,
-    tempMin: 17
-  },
-  {
-    date: '6/26',
-    dayName: '周四',
-    weatherCode: 63,
-    description: '中雨',
-    tempMax: 23,
-    tempMin: 16
-  },
-  {
-    date: '6/27',
-    dayName: '周五',
-    weatherCode: 1,
-    description: '大部晴朗',
-    tempMax: 28,
-    tempMin: 18
-  },
-  {
-    date: '6/28',
-    dayName: '周六',
-    weatherCode: 0,
-    description: '晴',
-    tempMax: 31,
-    tempMin: 21
+function getDayName(dateStr) {
+  const days = ['周日', '周一', '周二', '周三', '周四', '周五', '周六']
+  const date = new Date(dateStr)
+  return days[date.getDay()]
+}
+
+async function loadWeatherData() {
+  loading.value = true
+  error.value = null
+  try {
+    const [currentData, forecastData] = await Promise.all([
+      getCurrentWeather(BEIJING.latitude, BEIJING.longitude),
+      getForecast(BEIJING.latitude, BEIJING.longitude, 7)
+    ])
+
+    currentWeather.value = {
+      temperature: Math.round(currentData.current.temperature_2m),
+      description: getWeatherDescription(currentData.current.weather_code),
+      humidity: currentData.current.relative_humidity_2m,
+      windSpeed: Math.round(currentData.current.wind_speed_10m),
+      feelsLike: Math.round(currentData.current.apparent_temperature)
+    }
+
+    const daily = forecastData.daily
+    forecastList.value = daily.time.map((dateStr, index) => ({
+      date: formatDate(dateStr),
+      dayName: getDayName(dateStr),
+      weatherCode: daily.weather_code[index],
+      description: getWeatherDescription(daily.weather_code[index]),
+      tempMax: Math.round(daily.temperature_2m_max[index]),
+      tempMin: Math.round(daily.temperature_2m_min[index])
+    }))
+  } catch (err) {
+    error.value = '获取天气数据失败，请稍后重试'
+    console.error(err)
+  } finally {
+    loading.value = false
   }
-]
+}
+
+onMounted(() => {
+  loadWeatherData()
+})
 </script>
 
 <template>
@@ -80,31 +72,41 @@ const forecastList = [
     </header>
 
     <main class="dashboard-main">
-      <section class="current-section">
-        <CurrentWeather
-          :temperature="currentWeather.temperature"
-          :description="currentWeather.description"
-          :humidity="currentWeather.humidity"
-          :wind-speed="currentWeather.windSpeed"
-          :feels-like="currentWeather.feelsLike"
-        />
-      </section>
+      <div v-if="loading" class="state-message">
+        <p>加载中...</p>
+      </div>
 
-      <section class="forecast-section">
-        <h2 class="section-title">未来 7 天预报</h2>
-        <div class="forecast-list">
-          <ForecastCard
-            v-for="(item, index) in forecastList"
-            :key="index"
-            :date="item.date"
-            :day-name="item.dayName"
-            :weather-code="item.weatherCode"
-            :description="item.description"
-            :temp-max="item.tempMax"
-            :temp-min="item.tempMin"
+      <div v-else-if="error" class="state-message error">
+        <p>{{ error }}</p>
+      </div>
+
+      <template v-else>
+        <section class="current-section">
+          <CurrentWeather
+            :temperature="currentWeather.temperature"
+            :description="currentWeather.description"
+            :humidity="currentWeather.humidity"
+            :wind-speed="currentWeather.windSpeed"
+            :feels-like="currentWeather.feelsLike"
           />
-        </div>
-      </section>
+        </section>
+
+        <section class="forecast-section">
+          <h2 class="section-title">未来 7 天预报</h2>
+          <div class="forecast-list">
+            <ForecastCard
+              v-for="(item, index) in forecastList"
+              :key="index"
+              :date="item.date"
+              :day-name="item.dayName"
+              :weather-code="item.weatherCode"
+              :description="item.description"
+              :temp-max="item.tempMax"
+              :temp-min="item.tempMin"
+            />
+          </div>
+        </section>
+      </template>
     </main>
   </div>
 </template>
@@ -147,12 +149,26 @@ const forecastList = [
   gap: 48px;
 }
 
+.state-message {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 80px 24px;
+  font-size: 20px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.state-message.error {
+  color: var(--accent-warm);
+}
+
 .current-section {
   display: flex;
   justify-content: center;
 }
 
-.current-section > :deep(div) {
+.current-section > :deep(.current-weather-card) {
   width: 100%;
   max-width: 560px;
 }

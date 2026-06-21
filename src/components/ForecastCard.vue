@@ -61,6 +61,7 @@ function getWeatherIcon(code) {
 <style scoped>
 .forecast-card {
   background: var(--bg-card);
+  border: 1px solid var(--border-color);
   border-radius: 16px;
   padding: 24px 20px;
   box-shadow: var(--shadow-md);
@@ -70,7 +71,7 @@ function getWeatherIcon(code) {
   gap: 16px;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
   flex: 1;
-  min-width: 0;
+  min-width: 140px;
 }
 
 .forecast-card:hover {
